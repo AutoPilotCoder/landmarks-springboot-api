@@ -1,10 +1,13 @@
 package com.java_springboot.landmarks.controller;
 
 import com.java_springboot.landmarks.assembler.LandmarkModelAssembler;
+import com.java_springboot.landmarks.entity.Category;
 import com.java_springboot.landmarks.entity.Landmark;
 import com.java_springboot.landmarks.entity.Region;
+import com.java_springboot.landmarks.exception.CategoryNotFoundException;
 import com.java_springboot.landmarks.exception.LandmarkNotFoundException;
 import com.java_springboot.landmarks.exception.RegionNotFoundException;
+import com.java_springboot.landmarks.repository.CategoryRepository;
 import com.java_springboot.landmarks.repository.LandmarkRepository;
 import com.java_springboot.landmarks.repository.RegionRepository;
 import lombok.AllArgsConstructor;
@@ -12,7 +15,11 @@ import org.springframework.hateoas.*;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.Collection;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 import static org.springframework.hateoas.server.mvc.WebMvcLinkBuilder.*;
 
@@ -23,10 +30,11 @@ public class LandmarkController {
     private final LandmarkRepository landmarkRepository;
     private final LandmarkModelAssembler landmarkModelAssembler;
     private final RegionRepository regionRepository;
+    private final CategoryRepository categoryRepository;
 
     @GetMapping
     public CollectionModel<EntityModel<Landmark>> getAllLandmarks() {
-        List<EntityModel<Landmark>> landmarks = landmarkRepository.findAllWithRegion()
+        List<EntityModel<Landmark>> landmarks = landmarkRepository.findAllFullData()
                 .stream()
                 .map(landmarkModelAssembler::toModel)
                 .toList();
@@ -39,7 +47,7 @@ public class LandmarkController {
 
     @GetMapping("/{id}")
     public EntityModel<Landmark> getLandmarkById(@PathVariable Long id) {
-        Landmark landmark = landmarkRepository.findByIdWithRegion(id)
+        Landmark landmark = landmarkRepository.findByIdFullData(id)
                 .orElseThrow(() -> new LandmarkNotFoundException(id));
         return landmarkModelAssembler.toModel(landmark);
     }
@@ -75,7 +83,14 @@ public class LandmarkController {
         landmark.setDescription(request.description());
         landmark.setLatitude(request.latitude());
         landmark.setLongitude(request.longitude());
-        landmark.setCategory(request.category());
+        Set<Category> categories = request.categoryIds() == null ?
+                new HashSet<>() :
+                request.categoryIds()
+                        .stream()
+                        .map(valId -> categoryRepository.findById(valId)
+                                .orElseThrow(() -> new CategoryNotFoundException(valId)))
+                        .collect(Collectors.toSet());
+        landmark.setCategories(categories);
         landmark.setRegion(region);
 
         Landmark savedLandmark = landmarkRepository.save(landmark);
@@ -92,14 +107,22 @@ public class LandmarkController {
         Landmark landmark = landmarkRepository.findById(id)
                 .orElseThrow(() -> new LandmarkNotFoundException(id));
 
-        Region region = regionRepository.findById(request.regionId())
-                .orElseThrow(() -> new RegionNotFoundException(request.regionId()));
-
         landmark.setName(request.name());
         landmark.setDescription(request.description());
         landmark.setLatitude(request.latitude());
         landmark.setLongitude(request.longitude());
-        landmark.setCategory(request.category());
+
+        Set<Category> categories = request.categoryIds() == null ?
+                new HashSet<>() :
+                request.categoryIds()
+                        .stream()
+                        .map(valId -> categoryRepository.findById(valId)
+                                .orElseThrow(() -> new CategoryNotFoundException(valId)))
+                        .collect(Collectors.toSet());
+        landmark.setCategories(categories);
+
+        Region region = regionRepository.findById(request.regionId())
+                .orElseThrow(() -> new RegionNotFoundException(request.regionId()));
         landmark.setRegion(region);
 
         Landmark savedLandmark = landmarkRepository.save(landmark);
@@ -108,6 +131,36 @@ public class LandmarkController {
         return ResponseEntity
                 .created(model.getRequiredLink(IanaLinkRelations.SELF).toUri())
                 .body(model);
+    }
+
+    @PutMapping("./{id}/categories")
+    public ResponseEntity<EntityModel<Landmark>> updateLandmarkCategories(@PathVariable Long id, @RequestBody Set<Long> categoryIds) {
+        Landmark landmark = landmarkRepository.findById(id)
+                .orElseThrow(() -> new LandmarkNotFoundException(id));
+        Set<Category> categories = categoryIds.stream()
+                .map(valId -> categoryRepository.findById(valId)
+                        .orElseThrow(() -> new CategoryNotFoundException(valId)))
+                .collect(Collectors.toSet());
+        landmark.getCategories().addAll(categories);
+        Landmark savedLandmark = landmarkRepository.save(landmark);
+        EntityModel<Landmark> model = landmarkModelAssembler.toModel(savedLandmark);
+        return ResponseEntity
+                .ok(model);
+    }
+
+    @DeleteMapping("./{id}/categories")
+    public ResponseEntity<EntityModel<Landmark>> deleteLandmarkCategories(@PathVariable Long id, @RequestBody Set<Long> categoryIds) {
+        Landmark landmark = landmarkRepository.findById(id)
+                .orElseThrow(() -> new LandmarkNotFoundException(id));
+        Set<Category> categories = categoryIds.stream()
+                .map(valId -> categoryRepository.findById(valId)
+                        .orElseThrow(() -> new CategoryNotFoundException(valId)))
+                .collect(Collectors.toSet());
+        landmark.getCategories().removeAll(categories);
+        Landmark savedLandmark = landmarkRepository.save(landmark);
+        EntityModel<Landmark> model = landmarkModelAssembler.toModel(savedLandmark);
+        return ResponseEntity
+                .ok(model);
     }
 
     @DeleteMapping("/{id}")
@@ -124,7 +177,7 @@ public class LandmarkController {
             String description,
             Double latitude,
             Double longitude,
-            String category,
+            Set<Long> categoryIds,
             Long regionId   // client sends the region ID, not the whole Region object
     ) {
     }

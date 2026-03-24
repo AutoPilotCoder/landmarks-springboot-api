@@ -33,6 +33,17 @@ public class GlobalExceptionHandler {
         );
     }
 
+    @ExceptionHandler(CategoryNotFoundException.class)
+    @ResponseStatus(HttpStatus.NOT_FOUND)
+    Map<String, Object> handleCategoryNotFound(CategoryNotFoundException ex) {
+        return Map.of(
+                "timestamp", LocalDateTime.now().toString(),
+                "status", 404,
+                "error", "Not Found",
+                "message", ex.getMessage()
+        );
+    }
+
     @ExceptionHandler(IllegalArgumentException.class)
     @ResponseStatus(HttpStatus.BAD_REQUEST)
         // 400

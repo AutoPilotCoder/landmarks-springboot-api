@@ -6,6 +6,9 @@ import jakarta.persistence.*;
 import lombok.*;
 import org.springframework.data.annotation.LastModifiedBy;
 
+import java.util.HashSet;
+import java.util.Set;
+
 @Entity
 @Table(name = "landmark")
 @Getter
@@ -31,8 +34,13 @@ public class Landmark {
     @Column(nullable = false)
     private Double longitude;
 
-    @Column(length = 50)
-    private String category;   // e.g. "monument", "park", "building"
+    @ManyToMany(fetch = FetchType.LAZY)
+    @JoinTable(
+            name = "landmark_category",
+            joinColumns = @JoinColumn(name = "landmark_id"),
+            inverseJoinColumns = @JoinColumn(name = "category_id")
+    )
+    private Set<Category> categories = new HashSet<>();   // e.g. "monument", "park", "building"
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "region_id", nullable = false)
