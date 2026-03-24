@@ -2,6 +2,7 @@ package com.java_springboot.landmarks.controller;
 
 import com.java_springboot.landmarks.assembler.CategoryModelAssembler;
 import com.java_springboot.landmarks.assembler.LandmarkModelAssembler;
+import com.java_springboot.landmarks.dto.response.CategoryResponseDTO;
 import com.java_springboot.landmarks.entity.Category;
 import com.java_springboot.landmarks.entity.Landmark;
 import com.java_springboot.landmarks.exception.CategoryNotFoundException;
@@ -30,24 +31,16 @@ public class CategoryController {
     private final CategoryService categoryService;
 
     @GetMapping
-    public CollectionModel<EntityModel<Category>> getAllCategories() {
-        List<EntityModel<Category>> categories = categoryRepository.findAll()
-                .stream()
-                .map(categoryModelAssembler::toModel)
-                .toList();
-
+    public CollectionModel<EntityModel<CategoryResponseDTO.CategorySummary>> getAllCategories() {
         return CollectionModel.of(
-                categories,
+                categoryService.findAll(),
                 linkTo(methodOn(CategoryController.class).getAllCategories()).withSelfRel()
         );
     }
 
     @GetMapping("/{id}")
-    public EntityModel<Category> getCategory(@PathVariable long id) {
-        Category category = categoryRepository.findById(id)
-                .orElseThrow(() -> new CategoryNotFoundException(id));
-
-        return categoryModelAssembler.toModel(category);
+    public EntityModel<CategoryResponseDTO.CategorySummary> getCategory(@PathVariable long id) {
+        return categoryModelAssembler.toModel(categoryService.findById(id));
     }
 
     @GetMapping("/{id}/landmarks")
@@ -67,25 +60,16 @@ public class CategoryController {
     }
 
     @PostMapping
-    public ResponseEntity<EntityModel<Category>> addCategory(@RequestBody Category category) {
-        String name = category.getName().trim().toLowerCase();
-        category.setName(name);
-        Category savedCategory = categoryRepository.save(category);
-        EntityModel<Category> entityModel = categoryModelAssembler.toModel(savedCategory);
+    public ResponseEntity<EntityModel<CategoryResponseDTO.CategorySummary>> addCategory(@RequestBody Category category) {
+        EntityModel<CategoryResponseDTO.CategorySummary> entityModel = categoryModelAssembler.toModel(categoryService.createCategory(category));
         return ResponseEntity
                 .created(entityModel.getRequiredLink(IanaLinkRelations.SELF).toUri())
                 .body(entityModel);
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<EntityModel<Category>> updateCategory(@PathVariable long id, @RequestBody Category category) {
-        Category exisitingCategory = categoryRepository.findById(id)
-                .orElseThrow(() -> new CategoryNotFoundException(id));
-        exisitingCategory.setName(category.getName());
-        exisitingCategory.setDescription(category.getDescription());
-        categoryRepository.save(exisitingCategory);
-        EntityModel<Category> entityModel = categoryModelAssembler.toModel(category);
-
+    public ResponseEntity<EntityModel<CategoryResponseDTO.CategorySummary>> updateCategory(@PathVariable long id, @RequestBody Category category) {
+        EntityModel<CategoryResponseDTO.CategorySummary> entityModel = categoryModelAssembler.toModel(categoryService.updateCategory(id, category));
         return ResponseEntity
                 .created(entityModel.getRequiredLink(IanaLinkRelations.SELF).toUri())
                 .body(entityModel);

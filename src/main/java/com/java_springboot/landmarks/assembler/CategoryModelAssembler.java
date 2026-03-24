@@ -1,6 +1,7 @@
 package com.java_springboot.landmarks.assembler;
 
 import com.java_springboot.landmarks.controller.CategoryController;
+import com.java_springboot.landmarks.dto.response.CategoryResponseDTO;
 import com.java_springboot.landmarks.entity.Category;
 import org.springframework.hateoas.EntityModel;
 import org.springframework.hateoas.server.RepresentationModelAssembler;
@@ -10,17 +11,17 @@ import static org.springframework.hateoas.server.mvc.WebMvcLinkBuilder.*;
 
 @Component
 public class CategoryModelAssembler
-        implements RepresentationModelAssembler<Category, EntityModel<Category>> {
+        implements RepresentationModelAssembler<CategoryResponseDTO.CategorySummary, EntityModel<CategoryResponseDTO.CategorySummary>> {
 
     @Override
-    public EntityModel<Category> toModel(Category category) {
+    public EntityModel<CategoryResponseDTO.CategorySummary> toModel(CategoryResponseDTO.CategorySummary category) {
         return EntityModel.of(category,
-                linkTo(methodOn(CategoryController.class).getCategory(category.getId()))
+                linkTo(methodOn(CategoryController.class).getCategory(category.id()))
                         .withSelfRel(),
                 linkTo(methodOn(CategoryController.class).getAllCategories())
                         .withRel("categories"),
                 linkTo(methodOn(CategoryController.class)
-                        .getLandmarksForCategory(category.getId()))
+                        .getLandmarksForCategory(category.id()))
                         .withRel("landmarks")
         );
     }
