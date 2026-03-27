@@ -1,6 +1,6 @@
 # Landmarks Springboot Api
 
-Sample project with java springboot and postgresql
+Sample project with java springboot and postgresql/postgis (seperated by branches)
 
 # Sample Implementations
 
