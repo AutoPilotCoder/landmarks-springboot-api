@@ -5,6 +5,7 @@ import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.persistence.*;
 import lombok.*;
 import org.springframework.data.annotation.LastModifiedBy;
+import org.locationtech.jts.geom.Point;
 
 import java.util.HashSet;
 import java.util.Set;
@@ -49,4 +50,10 @@ public class Landmark {
     private Region region;
 
 
+    // =========================
+    // Postgis
+    // =========================
+
+    @Column(columnDefinition = "geometry(Point,4326)")
+    private Point location;
 }

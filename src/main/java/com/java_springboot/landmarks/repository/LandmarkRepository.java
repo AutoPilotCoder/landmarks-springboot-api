@@ -36,4 +36,38 @@ public interface LandmarkRepository extends JpaRepository<Landmark, Long> {
 
     @Query("SELECT DISTINCT l FROM Landmark l JOIN FETCH l.region JOIN FETCH l.categories WHERE l.id = :id")
     Optional<Landmark> findByIdFullData(@Param("id") Long id);
+
+    @Query(value = """
+            SELECT 
+                l.*, 
+                ST_Distance(
+                    l.location::geography,
+                    ST_SetSRID(ST_MakePoint(:lng, :lat), 4326)::geography
+                ) AS distance
+            FROM landmark l
+            WHERE ST_DWithin(
+                l.location::geography,
+                ST_SetSRID(ST_MakePoint(:lng, :lat), 4326)::geography,
+                :radiusMetres
+            )
+            ORDER BY distance
+            """, nativeQuery = true)
+    List<Object[]> findNearby(
+            @Param("lat") double lat,
+            @Param("lng") double lng,
+            @Param("radiusMetres") double radiusMetres
+    );
+
+    @Query(value = """
+                SELECT 
+                    ST_Distance(
+                        a.location::geography,
+                        b.location::geography
+                    )
+                FROM landmark a, landmark b 
+                WHERE 
+                    a.id = :id1 AND
+                    b.id = :id2
+            """, nativeQuery = true)
+    Double findDistanceBetweenLandmarks(@Param("id1") Long id1, @Param("id2") Long id2);
 }

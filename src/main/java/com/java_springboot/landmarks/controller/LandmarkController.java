@@ -10,15 +10,16 @@ import com.java_springboot.landmarks.exception.RegionNotFoundException;
 import com.java_springboot.landmarks.repository.CategoryRepository;
 import com.java_springboot.landmarks.repository.LandmarkRepository;
 import com.java_springboot.landmarks.repository.RegionRepository;
+import com.java_springboot.landmarks.util.GeometryUtil;
 import lombok.AllArgsConstructor;
+import org.locationtech.jts.geom.Point;
 import org.springframework.hateoas.*;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.Collection;
-import java.util.HashSet;
+import java.awt.*;
+import java.util.*;
 import java.util.List;
-import java.util.Set;
 import java.util.stream.Collectors;
 
 import static org.springframework.hateoas.server.mvc.WebMvcLinkBuilder.*;
@@ -73,6 +74,36 @@ public class LandmarkController {
         );
     }
 
+    @GetMapping("/distanceBetween")
+    public EntityModel<Map<String, Object>> getDistanceBetweenLandmarks(@RequestBody DistanceRequest request) {
+        Double distance = landmarkRepository.findDistanceBetweenLandmarks(request.id1(), request.id2());
+
+        Map<String, Object> result = new HashMap<>();
+        result.put("id1", request.id1());
+        result.put("id2", request.id2());
+        result.put("distance_meters", Math.round(distance));
+        // How the trick works (since there's no easy way to do 2 decimal places
+        //
+        //        1089.43 metres
+        //
+        //        Step 1: /1000.0   →1.08943 convert to km
+        //        Step 2: *100.0    →108.943 shift decimal RIGHT 2 places
+        //        Step 3:Math.round →109 now safe to round, nothing important is lost
+        //        Step 4: /100.0    →1.09 shift decimal LEFT 2 places back
+        //
+        //  The `*100`shifts the digits you want to keep above the decimal point so `Math.round` does not destroy them.
+        //        Then `/100`shifts everything back.
+        result.put("distance_km", Math.round((distance / 1000.0 * 100.0)) / 100.0);
+
+        return EntityModel.of(
+                result,
+                linkTo(methodOn(LandmarkController.class).getDistanceBetweenLandmarks(request)).withSelfRel(),
+                linkTo(methodOn(LandmarkController.class).getAllLandmarks()).withRel("landmarks"),
+                linkTo(methodOn(LandmarkController.class).getLandmarkById(request.id1())).withRel("landmarks1"),
+                linkTo(methodOn(LandmarkController.class).getLandmarkById(request.id2())).withRel("landmarks2")
+        );
+    }
+
     @PostMapping
     public ResponseEntity<EntityModel<Landmark>> addLandmark(@RequestBody LandmarkRequest request) {
         Region region = regionRepository.findById(request.regionId())
@@ -83,6 +114,8 @@ public class LandmarkController {
         landmark.setDescription(request.description());
         landmark.setLatitude(request.latitude());
         landmark.setLongitude(request.longitude());
+        landmark.setLocation(GeometryUtil.makePoint(request.longitude(), request.latitude()));
+
         Set<Category> categories = request.categoryIds() == null ?
                 new HashSet<>() :
                 request.categoryIds()
@@ -111,6 +144,7 @@ public class LandmarkController {
         landmark.setDescription(request.description());
         landmark.setLatitude(request.latitude());
         landmark.setLongitude(request.longitude());
+        landmark.setLocation(GeometryUtil.makePoint(request.longitude(), request.latitude()));
 
         Set<Category> categories = request.categoryIds() == null ?
                 new HashSet<>() :
@@ -179,6 +213,12 @@ public class LandmarkController {
             Double longitude,
             Set<Long> categoryIds,
             Long regionId   // client sends the region ID, not the whole Region object
+    ) {
+    }
+
+    record DistanceRequest(
+            Long id1,
+            Long id2
     ) {
     }
 
